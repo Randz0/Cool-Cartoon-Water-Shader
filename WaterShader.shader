@@ -1,4 +1,3 @@
-// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
 
 Shader "Unlit/WaterShader"
 {
@@ -72,15 +71,22 @@ Shader "Unlit/WaterShader"
                 return float2(xDisp, yDisp) * _InverseDetail * _MaxUVDisplacement; 
             }
 
+            float3 DecryptGradient(float4 uvPosition) {
+                float3 pointInSpace = tex3Dlod(_NoiseMap, uvPosition);
+                float3 relativeVector = pointInSpace - float3(0.5, 0.5, 0.5);
+
+                return relativeVector * 2;
+            }
+
             void GetGradients(float4 bottomRightUVPos, out float3 gradients[8]) {
-                gradients[0] = tex3Dlod(_NoiseMap, bottomRightUVPos); // Bottom Left
-                gradients[1] = tex3Dlod(_NoiseMap, bottomRightUVPos + float4(_InverseSizeNoiseMap, 0, 0, 0)); // Bottom Right
-                gradients[2] = tex3Dlod(_NoiseMap, bottomRightUVPos + float4(0, _InverseSizeNoiseMap, 0, 0)); // Bottom Forward
-                gradients[3] = tex3Dlod(_NoiseMap, bottomRightUVPos + float4(_InverseSizeNoiseMap, _InverseSizeNoiseMap, 0, 0)); // Bottom Forward Right
-                gradients[4] = tex3Dlod(_NoiseMap, bottomRightUVPos + float4(0, 0, _InverseSizeNoiseMap, 0)); // Top Left
-                gradients[5] = tex3Dlod(_NoiseMap, bottomRightUVPos + float4(_InverseSizeNoiseMap, 0, _InverseSizeNoiseMap, 0)); // Top Right
-                gradients[6] = tex3Dlod(_NoiseMap, bottomRightUVPos + float4(0, _InverseSizeNoiseMap, _InverseSizeNoiseMap, 0)); // Top Forward
-                gradients[7] = tex3Dlod(_NoiseMap, bottomRightUVPos + float4(_InverseSizeNoiseMap, _InverseSizeNoiseMap, _InverseSizeNoiseMap, 0)); // Top Forward Right
+                gradients[0] = DecryptGradient(bottomRightUVPos); // Bottom Left
+                gradients[1] = DecryptGradient(bottomRightUVPos + float4(_InverseSizeNoiseMap, 0, 0, 0)); // Bottom Right
+                gradients[2] = DecryptGradient(bottomRightUVPos + float4(0, _InverseSizeNoiseMap, 0, 0)); // Bottom Forward
+                gradients[3] = DecryptGradient(bottomRightUVPos + float4(_InverseSizeNoiseMap, _InverseSizeNoiseMap, 0, 0)); // Bottom Forward Right
+                gradients[4] = DecryptGradient(bottomRightUVPos + float4(0, 0, _InverseSizeNoiseMap, 0)); // Top Left
+                gradients[5] = DecryptGradient(bottomRightUVPos + float4(_InverseSizeNoiseMap, 0, _InverseSizeNoiseMap, 0)); // Top Right
+                gradients[6] = DecryptGradient(bottomRightUVPos + float4(0, _InverseSizeNoiseMap, _InverseSizeNoiseMap, 0)); // Top Forward
+                gradients[7] = DecryptGradient(bottomRightUVPos + float4(_InverseSizeNoiseMap, _InverseSizeNoiseMap, _InverseSizeNoiseMap, 0)); // Top Forward Right
             } // This is a lot of code but it really just samples from the tex3d for the relevant gradient info
 
             float FadePerAxis (float value) {
@@ -88,37 +94,37 @@ Shader "Unlit/WaterShader"
             }
 
             float JointFadeFunction (float3 displacementXYZ) {
-                return FadePerAxis(displacementXYZ.x) * FadePerAxis(displacementXYZ.y) * FadePerAxis(displacementXYZ.z);
+                return FadePerAxis(1 - displacementXYZ.x) * FadePerAxis(1 - displacementXYZ.y) * FadePerAxis(1 - displacementXYZ.z);
             } // When implementing perlin noise, a fade function is often used for convienience; Expects the inputs in pixel coords with decimal precision
 
             void GetJointFadesWithDifferences (float3 positionInUnitCube, out float fades[8], out float3 diffs[8]) {
-                diffs[0] = float3(1,1,1) - positionInUnitCube;
-                fades[0] = JointFadeFunction(diffs[0]); // Bottom Left
+                diffs[0] = positionInUnitCube;
+                fades[0] = JointFadeFunction( abs(diffs[0]) ); // Bottom Left
 
-                diffs[1] = float3(positionInUnitCube.x, 1 - positionInUnitCube.yz);
-                fades[1] = JointFadeFunction(diffs[1]); // Bottom Right
+                diffs[1] = positionInUnitCube - float3(1, 0, 0);
+                fades[1] = JointFadeFunction( abs(diffs[1]) ); // Bottom Right
                 
-                diffs[2] = float3(1 - positionInUnitCube.x, positionInUnitCube.y, 1 - positionInUnitCube.z);
-                fades[2] = JointFadeFunction(diffs[2]); // Bottom Forward
+                diffs[2] = positionInUnitCube - float3(0, 1, 0);
+                fades[2] = JointFadeFunction( abs(diffs[2]) ); // Bottom Forward
                 
-                diffs[3] = float3(positionInUnitCube.x, positionInUnitCube.y, 1 - positionInUnitCube.z);
-                fades[3] = JointFadeFunction(diffs[3]); // Bottom Forward Right
+                diffs[3] = positionInUnitCube - float3(1, 1, 0);
+                fades[3] = JointFadeFunction( abs(diffs[3]) ); // Bottom Forward Right
                 
-                diffs[4] = float3(1 - positionInUnitCube.x, 1 - positionInUnitCube.y, positionInUnitCube.z);
-                fades[4] = JointFadeFunction(diffs[4]); // Top Left
+                diffs[4] = positionInUnitCube - float3(0, 0, 1);
+                fades[4] = JointFadeFunction( abs(diffs[4]) ); // Top Left
                 
-                diffs[5] = float3(positionInUnitCube.x, 1 - positionInUnitCube.y, positionInUnitCube.z);
-                fades[5] = JointFadeFunction(diffs[5]); // Top Right
+                diffs[5] = positionInUnitCube - float3(1, 0, 1);
+                fades[5] = JointFadeFunction( abs(diffs[5]) ); // Top Right
                 
-                diffs[6] = float3(1 - positionInUnitCube.x, positionInUnitCube.y, positionInUnitCube.z);
-                fades[6] = JointFadeFunction(diffs[6]); // Top Forward
+                diffs[6] = positionInUnitCube - float3(1, 0, 1);
+                fades[6] = JointFadeFunction( abs(diffs[6]) ); // Top Forward
                 
-                diffs[7] = float3(positionInUnitCube.x, positionInUnitCube.y, positionInUnitCube.z);
-                fades[7] = JointFadeFunction(diffs[7]); // Top Forward Right
+                diffs[7] = positionInUnitCube - float3(1, 1, 1);
+                fades[7] = JointFadeFunction( abs(diffs[7]) ); // Top Forward Right
             } // Calculates the Joint fade function and caches the differences for the later dot products
 
             float GetFinalPerlinValue (float fades[8], float3 diffs[8], float3 gradients[8]) {
-                return (
+                return -1 * (
                     dot (diffs[0], gradients[0]) * fades[0] +
                     dot (diffs[1], gradients[1]) * fades[1] +
                     dot (diffs[2], gradients[2]) * fades[2] +
@@ -130,8 +136,8 @@ Shader "Unlit/WaterShader"
                 );
             } // Does the final operation which is nice and implemented
 
-            #define OUTPUT_SHIFT 0.43301270189
-            #define OUTPUT_SCALE 0.76980035892
+            #define OUTPUT_SHIFT 0.866025403784
+            #define OUTPUT_SCALE 0.57735026919
 
             // Samples the value of perlin noise from within the model
             float GetBrightnessFromNoiseMap(float3 sampleAt) {
