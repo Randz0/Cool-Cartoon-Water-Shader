@@ -13,11 +13,11 @@ public class Noise3DGenerator : MonoBehaviour
         
         Vector3 newGradientDirection = rotationFromNeutral * Vector3.forward; // Randomly rotating to get an even distribution of pseudo-random directions the gradient can take
         
-        return newGradientDirection * _maxSteepness;
+        return newGradientDirection.normalized * 0.5f + Vector3.one * 0.5f;
     }
 
     public void GenerateNewNoiseTexture(int _size, float _maxSteepness, string name="Instance0.asset") {
-        TextureFormat format = TextureFormat.RGB24; // Only needs to store a 3D gradient vector
+        TextureFormat format = TextureFormat.RGBA32; // Only needs to store a 3D gradient vector
 
         Texture3D noiseGradients = new Texture3D(_size, _size, _size, format, false);
         noiseGradients.wrapMode = TextureWrapMode.Repeat; // Should repeat for sampling across a large plane
