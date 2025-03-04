@@ -11,6 +11,8 @@ Shader "Unlit/WaterShader"
         _NoiseMap ("Noise Map", 3D) = "white" 
         _SizeOfNoiseMap ("Size Noise Map", int) = 10
         _InverseSizeNoiseMap (" 1 / Size Of Noise Map", float) = 0.1
+    
+        _TestingZ ("Test Var", float) = 1
     }
     SubShader
     {
@@ -40,6 +42,8 @@ Shader "Unlit/WaterShader"
             float _InverseDetail;
             float _MaxUVDisplacement;
 
+            float _TestingZ;
+
             struct VertIn {
                 float4 positionVert : POSITION;
                 float2 uv1 : TEXCOORD0;
@@ -50,6 +54,8 @@ Shader "Unlit/WaterShader"
                 float2 uv1 : TEXCOORD0;
 
                 float calculatedPerlinLighting : TEXCOORD1;
+
+                float3 DEBUG_COLOR : TEXCOORD2;
             };
 
             float TrigSumX (float val) {
@@ -116,7 +122,7 @@ Shader "Unlit/WaterShader"
                 diffs[5] = positionInUnitCube - float3(1, 0, 1);
                 fades[5] = JointFadeFunction( abs(diffs[5]) ); // Top Right
                 
-                diffs[6] = positionInUnitCube - float3(1, 0, 1);
+                diffs[6] = positionInUnitCube - float3(0, 1, 1);
                 fades[6] = JointFadeFunction( abs(diffs[6]) ); // Top Forward
                 
                 diffs[7] = positionInUnitCube - float3(1, 1, 1);
